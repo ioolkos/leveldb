@@ -36,6 +36,10 @@
 #define ARCH_CPU_X86_FAMILY 1
 #elif defined(__ARMEL__)
 #define ARCH_CPU_ARM_FAMILY 1
+#elif defined(__aarch64__)
+#define ARCH_CPU_ARM64_FAMILY 1
+#elif defined(__powerpc64__) && defined(__LITTLE_ENDIAN__)
+#define ARCH_CPU_PPC64LE_FAMILY 1
 #endif
 
 namespace leveldb {
@@ -73,6 +77,16 @@ inline void MemoryBarrier() {
 }
 #define LEVELDB_HAVE_MEMORY_BARRIER
 
+#elif defined(ARCH_CPU_PPC64LE_FAMILY) && defined(__GNUC__)
+inline void MemoryBarrier() {
+  // See http://gcc.gnu.org/ml/gcc/2003-04/msg01180.html for a discussion on
+  // this idiom. Also see http://en.wikipedia.org/wiki/Memory_ordering.
+  __asm__ __volatile__("sync" : : : "memory");
+}
+#define LEVELDB_HAVE_MEMORY_BARRIER
+
+
+
 // ARM Linux
 #elif defined(ARCH_CPU_ARM_FAMILY) && defined(__linux__)
 typedef void (*LinuxKernelMemoryBarrierFunc)(void);
@@ -90,6 +104,14 @@ inline void MemoryBarrier() {
   (*(LinuxKernelMemoryBarrierFunc)0xffff0fa0)();
 }
 #define LEVELDB_HAVE_MEMORY_BARRIER
+
+// ARM64
+#elif defined(ARCH_CPU_ARM64_FAMILY)
+inline void MemoryBarrier() {
+  asm volatile("dmb sy" : : : "memory");
+}
+#define LEVELDB_HAVE_MEMORY_BARRIER
+
 
 #endif
 
@@ -147,6 +169,8 @@ class AtomicPointer {
 #undef LEVELDB_HAVE_MEMORY_BARRIER
 #undef ARCH_CPU_X86_FAMILY
 #undef ARCH_CPU_ARM_FAMILY
+#undef ARCH_CPU_ARM64_FAMILY
+#undef ARCH_CPU_PPC64LE_FAMILY
 
 }  // namespace port
 }  // namespace leveldb
